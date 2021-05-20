@@ -1,5 +1,5 @@
 
-    This experiment combines the power of a Genetic Algorithm and the Levenshtein Distance calculation to find' a target phrase
+    This experiment combines the power of a Genetic Algorithm and the Levenshtein Distance calculation to 'find' a target phrase
     entered by the user.
     
     The input parameters are:
