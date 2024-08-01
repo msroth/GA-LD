@@ -1,17 +1,19 @@
 """
-(C) 2020 MSRoth
+(C) 2020-2024 MSRoth
 """
 import Levenshtein
 import random
 import uuid
+import shortuuid
 import sys
+import time
 
 
 # defaults
 DEFAULT_PHRASE = 'Scarlett O\'Hara was not beautiful,'
 DEFAULT_GENERATIONS = 50000         # max number of generations to run
-DEFAULT_POPULATION = 10             # number of individuals per generation
-DEFAULT_NUMBER_OF_PARENTS = 4       # number of parents to populate next generation
+DEFAULT_POPULATION = 50             # number of individuals per generation
+DEFAULT_NUMBER_OF_PARENTS = 20      # number of parents to populate next generation
 
 # constants
 PHRASE_KEY = 'phrase'
@@ -30,7 +32,8 @@ class Individual:
         self.fitness = 10000
         self.born = born   # generation this individual was born
         self.parents = []  # list of parents
-        self.id = uuid.uuid1()  # my id
+        #self.id = uuid.uuid4().hex  # my id
+        self.id = shortuuid.ShortUUID().random(length=18)
         self.phrase = ''.join(random.choices(LETTERS, k=phrase_length))  # this individual's starting phrase
         if parents is not None:
             self.parents = parents
@@ -67,11 +70,11 @@ class Population:
         """
         self.update_fitness_scores()
         print('Population Summary:')
-        print('  Generation:      {}'.format(self.generation))
-        print('  Size:            {}'.format(self.size))
-        print('  Best individual: {}'.format(self.return_fittest().id))
-        print('  Best score:      {}'.format(self.return_fittest().fitness))
-        print('  Best phrase:     {}'.format(self.return_fittest().phrase))
+        print('  Generation:       {}'.format(self.generation))
+        print('  Size:             {}'.format(self.size))
+        print('  Best individual:  {}'.format(self.return_fittest().id))
+        print('  Best score:       {}'.format(self.return_fittest().fitness))
+        print('  Best phrase:      {}'.format(self.return_fittest().phrase))
         print('Individuals:')
         for individual in self.members:
             individual.print()
@@ -139,7 +142,7 @@ class GeneticAlgorithm:
         self.max_generations = int(inputs_values[GENERATIONS_KEY])
         self.number_of_parents = int(inputs_values[PARENTS_KEY])
         self.population_size = int(inputs_values[POPULATION_KEY])
-        self.mutation_rate = 1/len(self.target_phrase)  # suggested by Internet sources
+        self.mutation_rate = 1.0/len(self.target_phrase)  # suggested by Internet sources
         self.current_generation = 0
         self.all_generations_data = []
         self.current_population = Population(self.population_size, 0, self.target_phrase)
@@ -199,18 +202,24 @@ class GeneticAlgorithm:
             print('*' * 15)
             print('Generation: {}, Fittest {}'.format(self.current_generation, generation_best_individual.fitness))
             self.current_population.print()
+            print('Next Gen Parents:')
+            for parent in self.current_population.return_top_fittest(self.number_of_parents):
+                print('  Id: {}, Phrase: {}, Fitness score: {}'.format(parent.id, parent.phrase, parent.fitness))
+
+            # DEBUG - pause for each generation
+            #_ = input('Press [ENTER] to continue')
 
     def create_crossover_children(self, parents: list, number_individuals: int) -> list:
         """
-        Create children by mating two parents and crossing thier genes at a particular cross point.
+        Create children by mating two parents and crossing their genes at a particular cross point.
 
         - the crossover point is a random number between 1 and the length of the phrase
         - the child is an assembly of the left portion of one parent and the right portion of the other
 
         For example:
         - crosspoint = random(1, 32) = 18
-        - parent 1 = xhxxbwkqkblgqpwtlxl <-> bjsdmfyzjwvxqq
-        - parent 2 = bftmeswlsyzrjjjmoar <-> hvqhc hf roejt
+        - parent 1 = id: xhxxbwkqkblgqpwtlxl <-> phrase: bjsdmfyzjwvxqq
+        - parent 2 = id: bftmeswlsyzrjjjmoar <-> phrase: hvqhc hf roejt
         - if LEFT1:
             - child = xhxxbwkqkblgqpwtlxl + hvqhc hf roejt
         -if LEFT2:
@@ -226,8 +235,11 @@ class GeneticAlgorithm:
             parent1 = selected_parents[0]
             parent2 = selected_parents[1]
 
-            # find the cross point
-            cross_point = random.randint(1, len(self.target_phrase) - 1)
+            # create new child
+            child = Individual(len(parent1.phrase), self.current_generation, [parent1, parent2])
+
+            # find the cross point -- not extreme ends
+            cross_point = random.randint(1, len(self.target_phrase) - 2)
 
             # chop up the parent phrases into left and right components at the cross point
             parent1_left = parent1.phrase[:cross_point]
@@ -238,14 +250,15 @@ class GeneticAlgorithm:
             # choose to cross the left or right side of the cross point
             left_segment = random.choice([LEFT1, LEFT2])
 
-            # create new child
-            child = Individual(len(parent1.phrase), self.current_generation, [parent1, parent2])
-
             # assemble left and right components to make new child phrase
             if left_segment == LEFT1:
                 child.phrase = parent1_left + parent2_right
             else:
                 child.phrase = parent2_left + parent1_right
+
+            if child.phrase == parent1.phrase or child.phrase == parent2.phrase:
+                print('Adding mutation because child phrase = parent phrase...')
+                child = self.return_mutated_child(child)
 
             # add new individuals to return list
             next_generation.append(child)
@@ -268,7 +281,7 @@ class GeneticAlgorithm:
         Randomly select a gene (letter) and replace it with another letter from the LETTERS list.
         """
         # randomly select a gene (letter) to mutate
-        gene_to_mutate = random.randint(0, len(child.phrase))
+        gene_to_mutate = random.randint(0, len(child.phrase) -1)
 
         # randomly select a new letter
         mutation = random.sample(LETTERS, k=1)[0]
@@ -278,13 +291,16 @@ class GeneticAlgorithm:
         print('mutate gene:        {}'.format(gene_to_mutate))
         print('mutation:           {}'.format(mutation))
         print('phrase before:     |{}| ({})'.format(child.phrase, len(child.phrase)))
-        print('                    {}*'.format(' ' * (gene_to_mutate - 1)))
+        print('                    {}*'.format(' ' * (gene_to_mutate)))
 
         # replace the randomly selected gene with a new letter
-        left_str = child.phrase[:gene_to_mutate - 1]
-        right_str = child.phrase[gene_to_mutate:]
+        left_str = child.phrase[:gene_to_mutate]
+        right_str = child.phrase[gene_to_mutate + 1:]
         child.phrase = left_str + mutation + right_str
         print('new phrase:        |{}| ({})'.format(child.phrase, len(child.phrase)))
+
+        # Debug
+        # _ = input('Press [ENTER] to continue')
         return child
 
     def print(self):
@@ -388,13 +404,15 @@ def get_user_inputs() -> dict:
         else:
             print('WARNING:  parents must be > 1.  Using default value {} instead.'.format(DEFAULT_NUMBER_OF_PARENTS))
 
+    print('Mutation rate will be {:.4f} (1/length of phrase)'.format(1/len(input_values[PHRASE_KEY])))
+    _ = input('Press [ENTER] to continue')
     return input_values
 
 
 def remove_punctuation(string_in: str) -> str:
     """
     Remove any character not in the LETTERS list (punctuation and numbers), and collapse multiple spaces
-    created sometimes created by removing punctuation.
+    created sometimes by removing punctuation.
     """
     clean_string = ''
     for letter in string_in.lower():
@@ -404,7 +422,7 @@ def remove_punctuation(string_in: str) -> str:
 
 
 def print_intro():
-    print('\n(C) 2020 MSRoth')
+    print('\n(C) 2020-2024 MSRoth')
     print('*' * 68)
     print('This experiment combines the power of a Genetic Algorithm and the')
     print('Levenshtein Distance calculation to \'find\' a target phrase')
@@ -416,7 +434,7 @@ def print_intro():
     print('   use to find the target phrase.  A generation includes creating')
     print('   offspring by crossing the genes of the \'best\' parents\' from')
     print('   the previous generation and some random mutations.')
-    print('* Population Size:  the number of idividuals in a generation.  This')
+    print('* Population Size:  the number of individuals in a generation.  This')
     print('   number does not change from generation to generation.')
     print('* Number of Parents:  the number of \'best\' individuals from the')
     print('   previous generation to sire all of the offspring in the next')
