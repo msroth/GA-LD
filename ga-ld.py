@@ -256,8 +256,10 @@ class GeneticAlgorithm:
             else:
                 child.phrase = parent2_left + parent1_right
 
-            if child.phrase == parent1.phrase or child.phrase == parent2.phrase:
-                print('Adding mutation because child phrase = parent phrase...')
+            if random.random() < float(1/len(child.phrase)):
+            #if child.phrase == parent1.phrase or child.phrase == parent2.phrase:
+            #    print('Adding mutation because child phrase = parent phrase...')
+                print('Adding mutation...')
                 child = self.return_mutated_child(child)
 
             # add new individuals to return list
