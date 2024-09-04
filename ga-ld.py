@@ -7,6 +7,7 @@ import uuid
 import shortuuid
 import sys
 import time
+import itertools
 
 
 # defaults
@@ -28,12 +29,15 @@ class Individual:
     """
     A class representing a single individual in a population
     """
+    _id_counter = itertools.count(1)
+    
     def __init__(self, phrase_length: int, born: int, parents: list = None):
         self.fitness = 10000
         self.born = born   # generation this individual was born
         self.parents = []  # list of parents
         #self.id = uuid.uuid4().hex  # my id
-        self.id = shortuuid.ShortUUID().random(length=18)
+        #self.id = shortuuid.ShortUUID().random(length=6)
+        self.id = str(born) + ":" + str(next(Individual._id_counter))
         self.phrase = ''.join(random.choices(LETTERS, k=phrase_length))  # this individual's starting phrase
         if parents is not None:
             self.parents = parents
@@ -147,6 +151,7 @@ class GeneticAlgorithm:
         self.all_generations_data = []
         self.current_population = Population(self.population_size, 0, self.target_phrase)
         self.best_individual = None
+        self.next_id = 0
 
     def run(self):
         """
@@ -217,13 +222,13 @@ class GeneticAlgorithm:
         - the child is an assembly of the left portion of one parent and the right portion of the other
 
         For example:
-        - crosspoint = random(1, 32) = 18
-        - parent 1 = id: xhxxbwkqkblgqpwtlxl <-> phrase: bjsdmfyzjwvxqq
-        - parent 2 = id: bftmeswlsyzrjjjmoar <-> phrase: hvqhc hf roejt
+        - crosspoint = random(1, 32) = 10
+        - parent 1 = phrase: bjsdmfyzjwvxqq
+        - parent 2 = phrase: hvqhc hf roejt
         - if LEFT1:
-            - child = xhxxbwkqkblgqpwtlxl + hvqhc hf roejt
+            - child = bjsdmfyzjw + oejt
         -if LEFT2:
-            - child = bftmeswlsyzrjjjmoar + bjsdmfyzjwvxqq
+            - child = hvqhc hf r + vxqq
         """
         LEFT1 = 'LEFT1'
         LEFT2 = 'LEFT2'
@@ -256,12 +261,12 @@ class GeneticAlgorithm:
             else:
                 child.phrase = parent2_left + parent1_right
 
-            if random.random() < float(1/len(child.phrase)):
-            #if child.phrase == parent1.phrase or child.phrase == parent2.phrase:
-            #    print('Adding mutation because child phrase = parent phrase...')
+            # add mutation if phrases exactly the same
+            if child.phrase == parent1.phrase or child.phrase == parent2.phrase:
+                print('Adding mutation because child phrase = parent phrase...')
                 print('Adding mutation...')
                 child = self.return_mutated_child(child)
-
+                
             # add new individuals to return list
             next_generation.append(child)
 
