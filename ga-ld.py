@@ -14,8 +14,8 @@ import itertools
 
 DEFAULT_PHRASE = 'Scarlett O\'Hara was not beautiful,'
 DEFAULT_GENERATIONS = 50000         # max number of generations to run
-DEFAULT_POPULATION = 50             # number of individuals per generation
-DEFAULT_NUMBER_OF_PARENTS = 20      # number of parents to populate next generation
+DEFAULT_POPULATION = 1000           # number of individuals per generation
+DEFAULT_NUMBER_OF_PARENTS = 50      # number of parents to populate next generation
 
 # constants
 PHRASE_KEY = 'phrase'
@@ -284,7 +284,7 @@ class GeneticAlgorithm:
             if child.phrase == parent1.phrase or child.phrase == parent2.phrase:
                 print('Adding mutation because child phrase = parent phrase...')
                 print('Adding mutation...')
-                child = self.return_mutated_child(child)
+                child = self.mutate_child(child)
                 
             # add new individuals to return list
             next_generation.append(child)
