@@ -1,16 +1,17 @@
 """
-(C) 2020-2024 MSRoth
+(C) 2020-2025 MSRoth
 """
 import Levenshtein
 import random
-import uuid
-import shortuuid
+#import uuid
+#import shortuuid
 import sys
 import time
 import itertools
 
 
 # defaults
+
 DEFAULT_PHRASE = 'Scarlett O\'Hara was not beautiful,'
 DEFAULT_GENERATIONS = 50000         # max number of generations to run
 DEFAULT_POPULATION = 50             # number of individuals per generation
@@ -121,7 +122,7 @@ class Population:
             best_individuals.append(sorted_population[i])
         return best_individuals
 
-    def __sort_population_by_fitness(self):
+    def __sort_population_by_fitness(self) -> list:
         """
         Sort by lowest fitness score
         """
@@ -134,7 +135,25 @@ class Population:
         """
         self.members.extend(individuals)
         if len(self.members) > self.size:
-            print('WARNING:  population size is {} > {}'.format(len(self.members), self.size))
+            print('WARNING:  population size is {} > {}, trimming population'.format(len(self.members), self.size))
+            self.members = self.trim_population(self.size)
+
+    def __sort_population_by_age(self) -> list:
+        """
+        Sort by age, yougest to oldest
+        """
+        sorted_list = sorted(self.members, key=lambda x: x.born, reverse=False)
+        return sorted_list
+    
+    def trim_population(self, max_size) -> list:
+        """
+        Trim number of members in population to max_size, by removing oldest members
+        """
+        sorted_population = self.__sort_population_by_age()
+        for i in range(sorted_population.length, max_size, -1):
+            print('Removing {}'.format(sorted_population[i].id))
+            sorted_population.remove[i]
+        return sorted_population
 
 
 class GeneticAlgorithm:
@@ -179,11 +198,11 @@ class GeneticAlgorithm:
             # get pool of parents
             parents = self.current_population.return_top_fittest(self.number_of_parents)
 
-            # create a new population for next generation
+            # create a new empty population for next generation
             self.current_generation += 1
             self.current_population = Population(self.population_size, self.current_generation, self.target_phrase)
 
-            # create next generation with crossovers
+            # create next generation members with crossovers
             next_generation_individuals = self.create_crossover_children(parents, self.population_size)
             self.current_population.add_individuals_to_population(next_generation_individuals)
 
@@ -191,7 +210,7 @@ class GeneticAlgorithm:
             for i in range(self.current_population.size):
                 probabilty = random.random()
                 if probabilty <= self.mutation_rate:
-                    self.current_population.members[i] = self.return_mutated_child(self.current_population.members[i])
+                    self.current_population.members[i] = self.mutate_child(self.current_population.members[i])
 
             # update fitness scores
             self.current_population.update_fitness_scores()
@@ -283,7 +302,7 @@ class GeneticAlgorithm:
         return next_generation
 
     @staticmethod
-    def return_mutated_child(child) -> Individual:
+    def mutate_child(child) -> Individual:
         """
         Randomly select a gene (letter) and replace it with another letter from the LETTERS list.
         """
@@ -429,7 +448,7 @@ def remove_punctuation(string_in: str) -> str:
 
 
 def print_intro():
-    print('\n(C) 2020-2024 MSRoth')
+    print('\n(C) 2020-2025 MSRoth')
     print('*' * 68)
     print('This experiment combines the power of a Genetic Algorithm and the')
     print('Levenshtein Distance calculation to \'find\' a target phrase')
